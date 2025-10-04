@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kepler KOI Prediction System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Share+Tech+Mono&display=swap');
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #0d1117;
+            direction: ltr;
+        }
+        h1, h2 {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .neon-glow {
+            box-shadow: 0 0 8px rgba(0, 255, 255, 0.7);
+            transition: all 0.3s ease-in-out;
+        }
+        .neon-text {
+            color: #00FFFF;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
+        }
+        input[type="text"], input[type="number"], select {
+            background-color: #161b22;
+            border: 1px solid #30363d;
+            color: #c9d1d9;
+            box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.7);
+            transition: all 0.3s ease-in-out;
+            text-align: left;
+        }
+        input:focus, select:focus {
+            border-color: #00FFFF;
+            box-shadow: 0 0 12px rgba(0, 255, 255, 0.6), inset 0 1px 4px rgba(0, 0, 0, 0.7);
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            color: #c9d1d9;
+        }
+        .input-grid {
+            grid-template-columns: repeat(1, minmax(0, 1fr));
+        }
+        @media (min-width: 768px) {
+            .input-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+        @media (min-width: 1024px) {
+            .input-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #00FFFF;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .info-icon {
+            cursor: help;
+            position: relative;
+            display: inline-block;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .info-icon:hover {
+            color: #fff;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+        #tooltip-container {
+            position: absolute;
+            z-index: 50;
+            pointer-events: none;
+            max-width: 400px;
+            opacity: 0;
+            transition: opacity 0.2s, transform 0.2s;
+            transform: translateY(5px);
+            white-space: normal;
+        }
+        .tooltip-content {
+            background-color: #10151a;
+            color: #00FFFF;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #00FFFF;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.7);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            font-family: 'Share Tech Mono', monospace;
+            text-align: left;
+        }
+    </style>
+</head>
+<body class="text-gray-200">
+    <div class="min-h-screen p-4 md:p-8">
+        <header class="text-center mb-12 border-b-2 border-cyan-600 pb-4">
+            <div class="flex justify-center items-center">
+                <svg class="w-10 h-10 text-cyan-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 8a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1zm4 0a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1zM5 13a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1zm10 0a1 1 0 00-1 1v1a1 1 0 102 0v-1a1 1 0 00-1-1z"/></svg>
+                <h1 class="text-4xl md:text-5xl font-bold text-cyan-400 neon-text ml-3">Kepler KOI Prediction System</h1>
+            </div>
+            <p class="text-lg mt-2 text-gray-400">AI-Powered Exoplanet Classification (116 Parameters)</p>
+        </header>
+        
+        <!-- Results Section -->
+        <div id="results-section" class="hidden max-w-4xl mx-auto mb-8 p-6 bg-[#161b22] rounded-xl border-2 border-cyan-500 neon-glow">
+            <h2 class="text-3xl font-semibold text-cyan-400 mb-4">Prediction Results</h2>
+            <div id="results-content"></div>
+        </div>
+
+        <main class="max-w-7xl mx-auto">
+            <form id="mission-data-form" class="space-y-10">
+                
+                <section class="p-6 bg-[#161b22] rounded-xl border border-gray-700 neon-glow/50">
+                    <h2 class="text-3xl font-semibold text-orange-400 mb-6 border-b border-gray-600 pb-2">All KOI Parameters</h2>
+                    <div class="input-grid grid gap-6">
+                        
+                        <div class="input-group"><label for="koi_vet_stat">Vetting Status</label>
+                        <select id="koi_vet_stat" name="koi_vet_stat" required>
+                            <option value="">Select Status</option>
+                            <option value="Active">Active</option>
+                            <option value="Done">Done</option>
+                        </select></div>
+                        
+                        <div class="input-group"><label for="koi_vet_date">Date of Last Update</label><input type="text" id="koi_vet_date" name="koi_vet_date" placeholder="e.g., 2018-08-16"></div>
+                        
+                        <div class="input-group"><label for="koi_pdisposition">Disposition</label><input type="text" id="koi_pdisposition" name="koi_pdisposition" placeholder="e.g., CANDIDATE" required></div>
+                        
+                        <div class="input-group"><label for="koi_fpflag_nt">Not Transit-Like FP Flag</label><select id="koi_fpflag_nt" name="koi_fpflag_nt"><option value="0">0 (No)</option><option value="1">1 (Yes)</option></select></div>
+                        
+                        <div class="input-group"><label for="koi_fpflag_ss">Stellar Eclipse FP Flag</label><select id="koi_fpflag_ss" name="koi_fpflag_ss"><option value="0">0 (No)</option><option value="1">1 (Yes)</option></select></div>
+                        
+                        <div class="input-group"><label for="koi_fpflag_co">Centroid Offset FP Flag</label><select id="koi_fpflag_co" name="koi_fpflag_co"><option value="0">0 (No)</option><option value="1">1 (Yes)</option></select></div>
+                        
+                        <div class="input-group"><label for="koi_fpflag_ec">Ephemeris Match FP Flag</label><select id="koi_fpflag_ec" name="koi_fpflag_ec"><option value="0">0 (No)</option><option value="1">1 (Yes)</option></select></div>
+                        
+                        <div class="input-group"><label for="koi_disp_prov">Disposition Provenance</label><input type="text" id="koi_disp_prov" name="koi_disp_prov" placeholder="e.g., q1_q17_dr25_sup_koi"></div>
+                        
+                        <div class="input-group"><label for="koi_comment">Comment</label><input type="text" id="koi_comment" name="koi_comment" placeholder="e.g., DEEP_V_SHAPED"></div>
+                        
+                        <div class="input-group"><label for="koi_period">Orbital Period [days]</label><input type="number" step="any" id="koi_period" name="koi_period" placeholder="e.g., 0.681" required></div>
+                        
+                        <div class="input-group"><label for="koi_period_err1">Period Upper Unc. [days]</label><input type="number" step="any" id="koi_period_err1" name="koi_period_err1" placeholder="e.g., 0.00000205"></div>
+                        
+                        <div class="input-group"><label for="koi_period_err2">Period Lower Unc. [days]</label><input type="number" step="any" id="koi_period_err2" name="koi_period_err2" placeholder="e.g., -0.0000105"></div>
+                        
+                        <div class="input-group"><label for="koi_time0bk">Transit Epoch [BKJD]</label><input type="number" step="any" id="koi_time0bk" name="koi_time0bk" placeholder="e.g., 175.850252" required></div>
+                        
+                        <div class="input-group"><label for="koi_time0bk_err1">Epoch Upper Unc. [BKJD]</label><input type="number" step="any" id="koi_time0bk_err1" name="koi_time0bk_err1" placeholder="e.g., 0.000054"></div>
+                        
+                        <div class="input-group"><label for="koi_time0bk_err2">Epoch Lower Unc. [BKJD]</label><input type="number" step="any" id="koi_time0bk_err2" name="koi_time0bk_err2" placeholder="e.g., -0.0000151"></div>
+                        
+                        <div class="input-group"><label for="koi_time0">Transit Epoch [BJD]</label><input type="number" step="any" id="koi_time0" name="koi_time0" placeholder="e.g., 2455003.308"></div>
+                        
+                        <div class="input-group"><label for="koi_time0_err1">Epoch Upper Unc. [BJD]</label><input type="number" step="any" id="koi_time0_err1" name="koi_time0_err1" placeholder="e.g., 0.000045"></div>
+                        
+                        <div class="input-group"><label for="koi_time0_err2">Epoch Lower Unc. [BJD]</label><input type="number" step="any" id="koi_time0_err2" name="koi_time0_err2" placeholder="e.g., -0.0000517"></div>
+                        
+                        <div class="input-group"><label for="koi_eccen">Orbital Eccentricity</label><input type="number" step="any" id="koi_eccen" name="koi_eccen" placeholder="e.g., 0.015"></div>
+                        
+                        <div class="input-group"><label for="koi_impact">Impact Parameter</label><input type="number" step="any" id="koi_impact" name="koi_impact" placeholder="e.g., 0.685" required></div>
+                        
+                        <div class="input-group"><label for="koi_impact_err1">Impact Upper Unc.</label><input type="number" step="any" id="koi_impact_err1" name="koi_impact_err1" placeholder="e.g., 0.65"></div>
+                        
+                        <div class="input-group"><label for="koi_impact_err2">Impact Lower Unc.</label><input type="number" step="any" id="koi_impact_err2" name="koi_impact_err2" placeholder="e.g., -0.15"></div>
+                        
+                        <div class="input-group"><label for="koi_duration">Transit Duration [hrs]</label><input type="number" step="any" id="koi_duration" name="koi_duration" placeholder="e.g., 26.6825" required></div>
+                        
+                        <div class="input-group"><label for="koi_duration_err1">Duration Upper Unc. [hrs]</label><input type="number" step="any" id="koi_duration_err1" name="koi_duration_err1" placeholder="e.g., 0.659"></div>
+                        
+                        <div class="input-group"><label for="koi_duration_err2">Duration Lower Unc. [hrs]</label><input type="number" step="any" id="koi_duration_err2" name="koi_duration_err2" placeholder="e.g., -0.035"></div>
+                        
+                        <div class="input-group"><label for="koi_depth">Transit Depth [ppm]</label><input type="number" step="any" id="koi_depth" name="koi_depth" placeholder="e.g., 8080" required></div>
+                        
+                        <div class="input-group"><label for="koi_depth_err1">Depth Upper Unc. [ppm]</label><input type="number" step="any" id="koi_depth_err1" name="koi_depth_err1" placeholder="e.g., 19.5"></div>
+                        
+                        <div class="input-group"><label for="koi_depth_err2">Depth Lower Unc. [ppm]</label><input type="number" step="any" id="koi_depth_err2" name="koi_depth_err2" placeholder="e.g., -5.8"></div>
+                        
+                        <div class="input-group"><label for="koi_ror">Planet-Star Radius Ratio</label><input type="number" step="any" id="koi_ror" name="koi_ror" placeholder="e.g., 0.387394" required></div>
+                        
+                        <div class="input-group"><label for="koi_ror_err1">Radius Ratio Upper Unc.</label><input type="number" step="any" id="koi_ror_err1" name="koi_ror_err1" placeholder="e.g., 5.03"></div>
+                        
+                        <div class="input-group"><label for="koi_ror_err2">Radius Ratio Lower Unc.</label><input type="number" step="any" id="koi_ror_err2" name="koi_ror_err2" placeholder="e.g., -403"></div>
+                        
+                        <div class="input-group"><label for="koi_srho">Fitted Stellar Density [g/cm³]</label><input type="number" step="any" id="koi_srho" name="koi_srho" placeholder="e.g., 3.82" required></div>
+                        
+                        <div class="input-group"><label for="koi_srho_err1">Density Upper Unc. [g/cm³]</label><input type="number" step="any" id="koi_srho_err1" name="koi_srho_err1" placeholder="e.g., 0.684"></div>
+                        
+                        <div class="input-group"><label for="koi_srho_err2">Density Lower Unc. [g/cm³]</label><input type="number" step="any" id="koi_srho_err2" name="koi_srho_err2" placeholder="e.g., -0.6811"></div>
+                        
+                        <div class="input-group"><label for="koi_fittype">Planetary Fit Type</label><input type="text" id="koi_fittype" name="koi_fittype" placeholder="e.g., LS+MCMC"></div>
+                        
+                        <div class="input-group"><label for="koi_prad">Planetary Radius [R_Earth]</label><input type="number" step="any" id="koi_prad" name="koi_prad" placeholder="e.g., 1.5" required></div>
+                        
+                        <div class="input-group"><label for="koi_prad_err1">Radius Upper Unc. [R_Earth]</label><input type="number" step="any" id="koi_prad_err1" name="koi_prad_err1" placeholder="e.g., 3.92"></div>
+                        
+                        <div class="input-group"><label for="koi_prad_err2">Radius Lower Unc. [R_Earth]</label><input type="number" step="any" id="koi_prad_err2" name="koi_prad_err2" placeholder="e.g., -0.25"></div>
+                        
+                        <div class="input-group"><label for="koi_sma">Semi-Major Axis [AU]</label><input type="number" step="any" id="koi_sma" name="koi_sma" placeholder="e.g., 0.574" required></div>
+                        
+                        <div class="input-group"><label for="koi_incl">Orbital Inclination [deg]</label><input type="number" step="any" id="koi_incl" name="koi_incl" placeholder="e.g., 88.65"></div>
+                        
+                        <div class="input-group"><label for="koi_teq">Equilibrium Temperature [K]</label><input type="number" step="any" id="koi_teq" name="koi_teq" placeholder="e.g., 1160" required></div>
+                        
+                        <div class="input-group"><label for="koi_insol">Insolation Flux [F_Earth]</label><input type="number" step="any" id="koi_insol" name="koi_insol" placeholder="e.g., 427.35" required></div>
+                        
+                        <div class="input-group"><label for="koi_insol_err1">Insolation Upper Unc.</label><input type="number" step="any" id="koi_insol_err1" name="koi_insol_err1" placeholder="e.g., 35.99"></div>
+                        
+                        <div class="input-group"><label for="koi_insol_err2">Insolation Lower Unc.</label><input type="number" step="any" id="koi_insol_err2" name="koi_insol_err2" placeholder="e.g., -94.14"></div>
+                        
+                        <div class="input-group"><label for="koi_dor">a/R*</label><input type="number" step="any" id="koi_dor" name="koi_dor" placeholder="e.g., 8.3367" required></div>
+                        
+                        <div class="input-group"><label for="koi_dor_err1">a/R* Upper Unc.</label><input type="number" step="any" id="koi_dor_err1" name="koi_dor_err1" placeholder="e.g., 1.2"></div>
+                        
+                        <div class="input-group"><label for="koi_dor_err2">a/R* Lower Unc.</label><input type="number" step="any" id="koi_dor_err2" name="koi_dor_err2" placeholder="e.g., -1.547"></div>
+                        
+                        <div class="input-group"><label for="koi_limbdark_mod">Limb Darkening Model</label><input type="text" id="koi_limbdark_mod" name="koi_limbdark_mod" placeholder="e.g., Claret ATLAS LS"></div>
+                        
+                        <div class="input-group"><label for="koi_ldm_coeff4">LD Coeff. 4</label><input type="number" step="any" id="koi_ldm_coeff4" name="koi_ldm_coeff4" placeholder="e.g., 0.25"></div>
+                        
+                        <div class="input-group"><label for="koi_ldm_coeff3">LD Coeff. 3</label><input type="number" step="any" id="koi_ldm_coeff3" name="koi_ldm_coeff3" placeholder="e.g., 0.021"></div>
+                        
+                        <div class="input-group"><label for="koi_ldm_coeff2">LD Coeff. 2</label><input type="number" step="any" id="koi_ldm_coeff2" name="koi_ldm_coeff2" placeholder="e.g., 0.229"></div>
+                        
+                        <div class="input-group"><label for="koi_ldm_coeff1">LD Coeff. 1</label><input type="number" step="any" id="koi_ldm_coeff1" name="koi_ldm_coeff1" placeholder="e.g., 0.489"></div>
+                        
+                        <div class="input-group"><label for="koi_parm_prov">Parameters Provenance</label><input type="text" id="koi_parm_prov" name="koi_parm_prov" placeholder="e.g., q1_q17_dr25_koi"></div>
+                        
+                        <div class="input-group"><label for="koi_max_sngle_ev">Max Single Event (SES)</label><input type="number" step="any" id="koi_max_sngle_ev" name="koi_max_sngle_ev" placeholder="e.g., 862.258"></div>
+                        
+                        <div class="input-group"><label for="koi_max_mult_ev">Max Multiple Event (MES)</label><input type="number" step="any" id="koi_max_mult_ev" name="koi_max_mult_ev" placeholder="e.g., 96.247"></div>
+                        
+                        <div class="input-group"><label for="koi_model_snr">Transit SNR (Model)</label><input type="number" step="any" id="koi_model_snr" name="koi_model_snr" placeholder="e.g., 25.04" required></div>
+                        
+                        <div class="input-group"><label for="koi_count">Number of Planets</label><input type="number" id="koi_count" name="koi_count" placeholder="e.g., 5"></div>
+                        
+                        <div class="input-group"><label for="koi_num_transits">Number of Transits</label><input type="number" id="koi_num_transits" name="koi_num_transits" placeholder="e.g., 621" required></div>
+                        
+                        <div class="input-group"><label for="koi_tce_plnt_num">TCE Planet Number</label><input type="number" id="koi_tce_plnt_num" name="koi_tce_plnt_num" placeholder="e.g., 1" required></div>
+                        
+                        <div class="input-group"><label for="koi_tce_delivname">TCE Delivery Name</label><input type="text" id="koi_tce_delivname" name="koi_tce_delivname" placeholder="e.g., q1_q17_dr25_tce"></div>
+                        
+                        <div class="input-group"><label for="koi_quarters">Quarters Observed</label><input type="text" id="koi_quarters" name="koi_quarters" placeholder="e.g., 1.11111E+31"></div>
+                        
+                        <div class="input-group"><label for="koi_bin_oedp_sig">Odd-Even Depth Stat</label><input type="number" step="any" id="koi_bin_oedp_sig" name="koi_bin_oedp_sig" placeholder="e.g., 0.0065"></div>
+                        
+                        <div class="input-group"><label for="koi_trans_mod">Transit Model</label><input type="text" id="koi_trans_mod" name="koi_trans_mod" placeholder="e.g., Mandel and Agol"></div>
+                        
+                        <div class="input-group"><label for="koi_datalink_dvr">Link to DVR</label><input type="text" id="koi_datalink_dvr" name="koi_datalink_dvr" placeholder="e.g., 010/../kplr_dvr.pdf"></div>
+                        
+                        <div class="input-group"><label for="koi_datalink_dvs">Link to DVS</label><input type="text" id="koi_datalink_dvs" name="koi_datalink_dvs" placeholder="e.g., 010/../kplr_dvs.pdf"></div>
+                        
+                        <div class="input-group"><label for="koi_steff">Stellar Eff. Temp [K]</label><input type="number" step="any" id="koi_steff" name="koi_steff" placeholder="e.g., 5855" required></div>
+                        
+                        <div class="input-group"><label for="koi_steff_err1">Temp Upper Unc. [K]</label><input type="number" step="any" id="koi_steff_err1" name="koi_steff_err1" placeholder="e.g., 84"></div>
+                        
+                        <div class="input-group"><label for="koi_steff_err2">Temp Lower Unc. [K]</label><input type="number" step="any" id="koi_steff_err2" name="koi_steff_err2" placeholder="e.g., -211"></div>
+                        
+                        <div class="input-group"><label for="koi_slogg">Stellar log(g)</label><input type="number" step="any" id="koi_slogg" name="koi_slogg" placeholder="e.g., 4.45" required></div>
+                        
+                        <div class="input-group"><label for="koi_slogg_err1">log(g) Upper Unc.</label><input type="number" step="any" id="koi_slogg_err1" name="koi_slogg_err1" placeholder="e.g., 0.054"></div>
+                        
+                        <div class="input-group"><label for="koi_slogg_err2">log(g) Lower Unc.</label><input type="number" step="any" id="koi_slogg_err2" name="koi_slogg_err2" placeholder="e.g., -0.047"></div>
+                        
+                        <div class="input-group"><label for="koi_smet">Stellar Metallicity [dex]</label><input type="number" step="any" id="koi_smet" name="koi_smet" placeholder="e.g., 0.3"></div>
+                        
+                        <div class="input-group"><label for="koi_smet_err1">Metallicity Upper Unc. [dex]</label><input type="number" step="any" id="koi_smet_err1" name="koi_smet_err1" placeholder="e.g., 0.04"></div>
+                        
+                        <div class="input-group"><label for="koi_smet_err2">Metallicity Lower Unc. [dex]</label><input type="number" step="any" id="koi_smet_err2" name="koi_smet_err2" placeholder="e.g., -0.14"></div>
+                        
+                        <div class="input-group"><label for="koi_srad">Stellar Radius [R_Sun]</label><input type="number" step="any" id="koi_srad" name="koi_srad" placeholder="e.g., 0.94" required></div>
+                        
+                        <div class="input-group"><label for="koi_srad_err1">Radius Upper Unc. [R_Sun]</label><input type="number" step="any" id="koi_srad_err1" name="koi_srad_err1" placeholder="e.g., 0.223"></div>
+                        
+                        <div class="input-group"><label for="koi_srad_err2">Radius Lower Unc. [R_Sun]</label><input type="number" step="any" id="koi_srad_err2" name="koi_srad_err2" placeholder="e.g., -0.127"></div>
+                        
+                        <div class="input-group"><label for="koi_smass">Stellar Mass [M_Sun]</label><input type="number" step="any" id="koi_smass" name="koi_smass" placeholder="e.g., 0.919" required></div>
+                        
+                        <div class="input-group"><label for="koi_smass_err1">Mass Upper Unc. [M_Sun]</label><input type="number" step="any" id="koi_smass_err1" name="koi_smass_err1" placeholder="e.g., 0.51"></div>
+                        
+                        <div class="input-group"><label for="koi_smass_err2">Mass Lower Unc. [M_Sun]</label><input type="number" step="any" id="koi_smass_err2" name="koi_smass_err2" placeholder="e.g., -0.047"></div>
+                        
+                        <div class="input-group"><label for="koi_sparprov">Stellar Parameter Provenance</label><input type="text" id="koi_sparprov" name="koi_sparprov" placeholder="e.g., q1_q17_dr25_stellar"></div>
+                        
+                        <div class="input-group"><label for="ra">RA [decimal deg]</label><input type="number" step="any" id="ra" name="ra" placeholder="e.g., 291.57441" required></div>
+                        
+                        <div class="input-group"><label for="dec">Dec [decimal deg]</label><input type="number" step="any" id="dec" name="dec" placeholder="e.g., 53.36997" required></div>
+                        
+                        <div class="input-group"><label for="koi_kepmag">Kepler Magnitude [mag]</label><input type="number" step="any" id="koi_kepmag" name="koi_kepmag" placeholder="e.g., 15.36" required></div>
+                        
+                        <div class="input-group"><label for="koi_gmag">g' Magnitude [mag]</label><input type="number" step="any" id="koi_gmag" name="koi_gmag" placeholder="e.g., 14.368"></div>
+                        
+                        <div class="input-group"><label for="koi_rmag">r' Magnitude [mag]</label><input type="number" step="any" id="koi_rmag" name="koi_rmag" placeholder="e.g., 15.33"></div>
+                        
+                        <div class="input-group"><label for="koi_imag">i' Magnitude [mag]</label><input type="number" step="any" id="koi_imag" name="koi_imag" placeholder="e.g., 17.3"></div>
+                        
+                        <div class="input-group"><label for="koi_zmag">z' Magnitude [mag]</label><input type="number" step="any" id="koi_zmag" name="koi_zmag" placeholder="e.g., 14.99"></div>
+                        
+                        <div class="input-group"><label for="koi_jmag">J Magnitude [mag]</label><input type="number" step="any" id="koi_jmag" name="koi_jmag" placeholder="e.g., 9.6"></div>
+                        
+                        <div class="input-group"><label for="koi_hmag">H Magnitude [mag]</label><input type="number" step="any" id="koi_hmag" name="koi_hmag" placeholder="e.g., 13.55"></div>
+                        
+                        <div class="input-group"><label for="koi_kmag">K Magnitude [mag]</label><input type="number" step="any" id="koi_kmag" name="koi_kmag" placeholder="e.g., 13.889"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_stat_sig">FW Offset Significance [%]</label><input type="number" step="any" id="koi_fwm_stat_sig" name="koi_fwm_stat_sig" placeholder="e.g., 0.72"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sra">FW Source RA(OOT) [hrs]</label><input type="number" step="any" id="koi_fwm_sra" name="koi_fwm_sra" placeholder="e.g., 19.2503258"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sra_err">FW Source RA(OOT) Unc. [hrs]</label><input type="number" step="any" id="koi_fwm_sra_err" name="koi_fwm_sra_err" placeholder="e.g., 0.000067"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sdec">FW Source Dec(OOT) [deg]</label><input type="number" step="any" id="koi_fwm_sdec" name="koi_fwm_sdec" placeholder="e.g., 48.369"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sdec_err">FW Source Dec(OOT) Unc. [deg]</label><input type="number" step="any" id="koi_fwm_sdec_err" name="koi_fwm_sdec_err" placeholder="e.g., 0.000087"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_srao">FW Source ΔRA(OOT) [arcsec]</label><input type="number" step="any" id="koi_fwm_srao" name="koi_fwm_srao" placeholder="e.g., -0.41"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_srao_err">FW Source ΔRA(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_fwm_srao_err" name="koi_fwm_srao_err" placeholder="e.g., 0.35"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sdeco">FW Source ΔDec(OOT) [arcsec]</label><input type="number" step="any" id="koi_fwm_sdeco" name="koi_fwm_sdeco" placeholder="e.g., 0.94"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_sdeco_err">FW Source ΔDec(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_fwm_sdeco_err" name="koi_fwm_sdeco_err" placeholder="e.g., 0.48"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_prao">FW ΔRA(OOT) [arcsec]</label><input type="number" step="any" id="koi_fwm_prao" name="koi_fwm_prao" placeholder="e.g., -0.0000016"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_prao_err">FW ΔRA(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_fwm_prao_err" name="koi_fwm_prao_err" placeholder="e.g., -0.0004"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_pdeco">FW ΔDec(OOT) [arcsec]</label><input type="number" step="any" id="koi_fwm_pdeco" name="koi_fwm_pdeco" placeholder="e.g., 0.0006"></div>
+                        
+                        <div class="input-group"><label for="koi_fwm_pdeco_err">FW ΔDec(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_fwm_pdeco_err" name="koi_fwm_pdeco_err" placeholder="e.g., -0.00018"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_mra">PRF ΔRA(OOT) [arcsec]</label><input type="number" step="any" id="koi_dicco_mra" name="koi_dicco_mra" placeholder="e.g., 0.01"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_mra_err">PRF ΔRA(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_dicco_mra_err" name="koi_dicco_mra_err" placeholder="e.g., -4.5"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_mdec">PRF ΔDec(OOT) [arcsec]</label><input type="number" step="any" id="koi_dicco_mdec" name="koi_dicco_mdec" placeholder="e.g., 0.014"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_mdec_err">PRF ΔDec(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_dicco_mdec_err" name="koi_dicco_mdec_err" placeholder="e.g., -0.05"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_msky">PRF Δθ(OOT) [arcsec]</label><input type="number" step="any" id="koi_dicco_msky" name="koi_dicco_msky" placeholder="e.g., 0.2"></div>
+                        
+                        <div class="input-group"><label for="koi_dicco_msky_err">PRF Δθ(OOT) Unc. [arcsec]</label><input type="number" step="any" id="koi_dicco_msky_err" name="koi_dicco_msky_err" placeholder="e.g., 0.17"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_mra">PRF ΔRA(KIC) [arcsec]</label><input type="number" step="any" id="koi_dikco_mra" name="koi_dikco_mra" placeholder="e.g., 0.57"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_mra_err">PRF ΔRA(KIC) Unc. [arcsec]</label><input type="number" step="any" id="koi_dikco_mra_err" name="koi_dikco_mra_err" placeholder="e.g., 0.9547"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_mdec">PRF ΔDec(KIC) [arcsec]</label><input type="number" step="any" id="koi_dikco_mdec" name="koi_dikco_mdec" placeholder="e.g., 7.22"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_mdec_err">PRF ΔDec(KIC) Unc. [arcsec]</label><input type="number" step="any" id="koi_dikco_mdec_err" name="koi_dikco_mdec_err" placeholder="e.g., 0.73"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_msky">PRF Δθ(KIC) [arcsec]</label><input type="number" step="any" id="koi_dikco_msky" name="koi_dikco_msky" placeholder="e.g., 0.07"></div>
+                        
+                        <div class="input-group"><label for="koi_dikco_msky_err">PRF Δθ(KIC) Unc. [arcsec]</label><input type="number" step="any" id="koi_dikco_msky_err" name="koi_dikco_msky_err" placeholder="e.g., 0.016"></div>
+                    </div>
+                </section>
+
+                <div class="flex justify-center mt-12 mb-10">
+                    <button type="submit" 
+                            class="bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-4 px-12 rounded-full uppercase tracking-widest text-xl transition duration-300 transform hover:scale-[1.03] neon-glow focus:outline-none focus:ring-4 focus:ring-cyan-500">
+                        Predict Exoplanet Classification
+                    </button>
+                </div>
+            </form>
+        </main>
+        <footer class="text-center mt-12 pt-4 border-t border-gray-800">
+            <p class="text-sm text-gray-600 neon-text">Kepler KOI AI Prediction System | 116 Parameters</p>
+        </footer>
+    </div>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'nasa-dark': '#0d1117',
+                        'nasa-blue': '#00FFFF',
+                        'nasa-orange': '#FFA500',
+                    }
+                }
+            }
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('mission-data-form');
+            const requiredInputs = form.querySelectorAll('[required]');
+            
+            document.querySelectorAll('.input-group input, .input-group select').forEach(input => {
+                input.classList.add('w-full', 'p-4', 'text-lg', 'rounded-lg', 'focus:ring-4', 'focus:ring-nasa-blue', 'transition', 'duration-200', 'border-gray-700', 'border');
+            });
+
+            form.addEventListener('submit', async function(event) {
+                event.preventDefault(); 
+                let allValid = true;
+                const formData = new FormData(form);
+                const exoplanetData = {};
+                
+                requiredInputs.forEach(input => {
+                    if (!input.value.trim()) {
+                        input.classList.add('border-red-500', 'ring-2', 'ring-red-500');
+                        allValid = false;
+                    } else {
+                        input.classList.remove('border-red-500', 'ring-2', 'ring-red-500');
+                    }
+                });
+                
+                if (!allValid) {
+                    alertModal("Validation Failed", "Please fill in all required fields.");
+                    return;
+                }
+                
+                // Collect form data
+                for (const [key, value] of formData.entries()) {
+                    const inputElement = form.querySelector(`[name="${key}"]`);
+                    const isNumeric = inputElement.type === 'number';
+                    exoplanetData[key] = isNumeric && value ? parseFloat(value) : value;
+                }
+                
+                // Show loading message
+                const submitBtn = document.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="loading"></span> Processing...';
+                
+                try {
+                    // Send to Flask backend
+                    const response = await fetch('http://localhost:5000/predict', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(exoplanetData)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (response.ok) {
+                        // Display results
+                        displayResults(result);
+                        alertModal("Prediction Complete", `Classification: ${result.prediction}`);
+                    } else {
+                        alertModal("Error", result.error || "Prediction failed");
+                    }
+                } catch (error) {
+                    alertModal("Connection Error", "Could not connect to prediction server. Make sure Flask is running on http://localhost:5000");
+                    console.error(error);
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            });
+
+            // Function to display results
+            function displayResults(result) {
+                const resultsSection = document.getElementById('results-section');
+                const resultsContent = document.getElementById('results-content');
+                
+                let probsHTML = '<div class="space-y-2 mt-4">';
+                for (const [cls, prob] of Object.entries(result.probabilities)) {
+                    const percentage = (prob * 100).toFixed(2);
+                    const barWidth = percentage;
+                    probsHTML += `
+                        <div class="p-3 bg-[#0d1117] rounded-lg">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="font-semibold">${cls}</span>
+                                <span class="text-cyan-400">${percentage}%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-2">
+                                <div class="bg-cyan-500 h-2 rounded-full transition-all duration-500" style="width: ${barWidth}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+                probsHTML += '</div>';
+                
+                resultsContent.innerHTML = `
+                    <div class="text-center mb-6">
+                        <h3 class="text-2xl font-bold text-orange-400 mb-2">Classification</h3>
+                        <p class="text-4xl font-bold text-cyan-400">${result.prediction}</p>
+                    </div>
+                    <h4 class="text-xl font-semibold text-gray-300 mb-3">Confidence Scores</h4>
+                    ${probsHTML}
+                `;
+                
+                resultsSection.classList.remove('hidden');
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            
+            function alertModal(title, message) {
+                const existingModal = document.getElementById('custom-alert-modal');
+                if (existingModal) existingModal.remove();
+                const modal = document.createElement('div');
+                modal.id = 'custom-alert-modal';
+                modal.className = 'fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 transition-opacity duration-300';
+                modal.innerHTML = `
+                    <div class="bg-nasa-dark p-8 rounded-xl max-w-sm w-full border-2 border-cyan-500 neon-glow relative text-left" dir="ltr">
+                        <h3 class="text-3xl font-bold mb-4 text-nasa-blue">${title}</h3>
+                        <p class="text-gray-300 mb-6">${message}</p>
+                        <button id="close-modal" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-2 rounded-lg transition duration-200">
+                            Close
+                        </button>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+                document.getElementById('close-modal').addEventListener('click', () => {
+                    modal.remove();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

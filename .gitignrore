@@ -1,6 +1,0 @@
-# Dependency directory
-node_modules/
-
-# Build/output directory (adjust based on your setup)
-dist/
-build
